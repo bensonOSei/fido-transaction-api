@@ -2,11 +2,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.routes import transactions, users
+from fastapi_events.middleware import EventHandlerASGIMiddleware
+from fastapi_events.handlers.local import local_handler
+import app.events.handlers.user_balance_update
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
+
+app.add_middleware(EventHandlerASGIMiddleware, handlers=[local_handler])
+
 
 # Set up CORS
 app.add_middleware(

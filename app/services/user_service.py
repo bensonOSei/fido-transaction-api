@@ -24,8 +24,8 @@ class UserService:
         if not user:
             raise ValueError(f"User with ID {user_id} not found")
 
-        user.balance += (amount * 100)
-        await self.user_repo.update(user, UserUpdate(balance=user.balance))
+        user.balance += amount
+        await self.user_repo.update(user, UserUpdate(balance=user.balance/100,full_name=user.full_name))
         # user.balance = user.balance_cents
         return user
 
@@ -34,11 +34,7 @@ class UserService:
         if not user:
             raise ValueError(f"User with ID {user_id} not found")
 
-        if user.balance < amount:
-            raise ValueError(
-                f"Insufficient balance. Current balance: {user.balance}")
-
         user.balance -= amount
-        await self.user_repo.update(user, UserUpdate(balance=user.balance))
+        await self.user_repo.update(user, UserUpdate(balance=user.balance/100,full_name=user.full_name))
         return user
         

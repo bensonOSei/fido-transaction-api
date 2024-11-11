@@ -6,8 +6,10 @@ from sqlalchemy.orm import selectinload
 from app.db.models import Transaction, User
 from app.db.transaction_model import TransactionStatus, TransactionType
 from app.repositories.transaction_repository import TransactionRepository
+from app.schemas.event_schemas import UserBalanceUpdatePayload, UserEvents
 from app.schemas.transaction import TransactionCreate, TransactionUpdate, TransactionAnalytics
 from app.services.user_service import UserService
+from fastapi_events.dispatcher import dispatch
 
 
 class TransactionService:
@@ -19,7 +21,12 @@ class TransactionService:
     async def create_transaction(self, data: TransactionCreate) -> Transaction:
         """Create a new transaction."""
         transaction = await self.transaction_repo.create(data)
-        # dispatch user balance update event
+        dispatch(UserBalanceUpdatePayload(
+            user_id=transaction.user_id,
+            amount=transaction.transaction_amount * 100,
+            transaction_id=transaction.id,
+            transaction_type=transaction.transaction_type
+        ))
         return transaction
 
     async def get_transactions(
@@ -33,13 +40,7 @@ class TransactionService:
 
     async def get_transaction(self, transaction_id: int) -> Optional[Transaction]:
         """Get a specific transaction."""
-        query = select(Transaction).where(
-            Transaction.id == transaction_id,
-        ).options(selectinload(
-            Transaction.user).load_only(User.id, User.full_name, User.created_at))
-
-        result = await self.db.execute(query)
-        return result.scalar_one_or_none()
+        return await self.transaction_repo.get(transaction_id)
 
     async def get_user_transactions(
         self,
@@ -53,12 +54,13 @@ class TransactionService:
             order_by="transaction_date",
             other_filters={"user_id": user_id})
 
-    async def update_transaction_status(self, transaction_id: int, user_id: int, status: TransactionStatus) -> Transaction:
+    async def update_transaction_status(self, transaction_id: int, status: TransactionStatus) -> Transaction:
         """Update a transaction status."""
-        transaction = await self.get_transaction(transaction_id, user_id)
+        transaction = await self.get_transaction(transaction_id)
         if not transaction:
             raise ValueError(f"Transaction with ID {transaction_id} not found")
 
         transaction.transaction_status = status
         await self.transaction_repo.update(transaction, TransactionUpdate(transaction_status=status))
         return transaction
+

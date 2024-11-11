@@ -9,7 +9,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     full_name: str
-    balance: Decimal = Field(0, ge=Decimal('0.01'))
+    balance: Decimal
 
     @validator('balance')
     def convert_balance_to_cents(cls, v):
@@ -32,7 +32,12 @@ class UserResponse(UserBase):
 
 
 class UserUpdate(UserBase):
-    balance: Optional[int]
+    balance: Optional[Decimal]
+    
+    @validator('balance')
+    def convert_balance_to_cents(cls, v):
+        # Convert balance to cents (multiply by 100)
+        return int(v * 100)
 
     class Config:
         from_attributes = True
