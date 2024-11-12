@@ -68,13 +68,23 @@ class TransactionAnalytics(BaseModel):
     user_id: int
     average_transaction_value: Decimal
     highest_transaction_day: datetime
-    # total_credits: Optional[Decimal]
-    # total_debits: Optional[Decimal]
+    total_credits: Optional[Decimal]
+    total_debits: Optional[Decimal]
     
-    # @validator('average_transaction_value')
-    # def convert_average_transaction_to_currency(cls, v):
-    #     # to 2 decimal places
-    #     v.quantize(Decimal('0.01'))
+    @validator('average_transaction_value', pre=True)
+    def convert_average_transaction_to_currency(cls, v):
+        # to 2 decimal places
+        return (Decimal(v) / 100).quantize(Decimal('0.01'))
+    
+    @validator('total_credits', pre=True)
+    def convert_total_credits_to_currency(cls, v):
+        # to 2 decimal places
+        return (Decimal(v) / 100).quantize(Decimal('0.01'))
+    
+    @validator('total_debits', pre=True)
+    def convert_total_debits_to_currency(cls, v):
+        # to 2 decimal places
+        return (Decimal(v) / 100).quantize(Decimal('0.01'))
 
     class Config:
         from_attributes = True

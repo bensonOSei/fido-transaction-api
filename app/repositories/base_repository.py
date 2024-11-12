@@ -1,7 +1,7 @@
 from typing import Generic, Type, TypeVar, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import delete
+from sqlalchemy import Select, delete
 from pydantic import BaseModel
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
@@ -24,6 +24,16 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             raise ValueError("db must be an instance of AsyncSession")
         self.db = db
         self.model = model
+        
+        
+    def get_db(self) -> AsyncSession:
+        """Get the database session."""
+        return self.db
+    
+    def get_model(self) -> Type[ModelType]:
+        """Get the model class."""
+        return self.model
+    
 
     async def get(self, id: int, related: Optional[str] = None) -> Optional[ModelType]:
         """Fetch an entity by its ID."""
@@ -125,4 +135,20 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         except SQLAlchemyError as e:
             await self.db.rollback()
             logger.error(f"Database error in delete(): {str(e)}")
+            raise
+        
+    async def execute(self, query: Select) -> Optional[dict]:
+        """Execute a raw SQL query."""
+        try:
+            if not self.db or not self.db.is_active:
+                raise ValueError("Database session is not active")
+            
+            result = await self.db.execute(query)
+            row = result.mappings().first()
+            if row is None:
+                return None
+            return dict(row)
+
+        except SQLAlchemyError as e:
+            logger.error(f"Database error in execute(): {str(e)}")
             raise

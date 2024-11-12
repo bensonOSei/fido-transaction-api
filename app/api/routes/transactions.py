@@ -50,6 +50,7 @@ async def create_transaction(
     expire=300
 )
 async def get_transactions(
+    request: Request,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=20, le=20),
     order_by: Optional[str] = None,
@@ -178,6 +179,7 @@ async def delete_transaction(
     expire=600  # 10 minutes for analytics
 )
 async def get_transaction_analytics(
+    request: Request,
     user_id: int,
     service: TransactionService = Depends(get_transaction_service)
 ):

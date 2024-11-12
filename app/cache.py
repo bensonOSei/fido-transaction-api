@@ -20,6 +20,22 @@ class CacheManager:
     def __init__(self, redis_client):
         self.redis_client = redis_client
     
+    def _serialize_data(self, data: Any) -> Any:
+        """Serialize data before caching."""
+        if hasattr(data, '__dict__'):  # SQLAlchemy model
+            return {
+                key: value for key, value in data.__dict__.items()
+                if not key.startswith('_')
+            }
+        elif isinstance(data, list):
+            return [self._serialize_data(item) for item in data]
+        elif isinstance(data, dict):
+            return {
+                key: self._serialize_data(value)
+                for key, value in data.items()
+            }
+        return data
+        
     @staticmethod
     def _generate_cache_key(
         namespace: str,
@@ -77,13 +93,15 @@ class CacheManager:
     ) -> bool:
         """Set a value in cache."""
         try:
+            serialized_data = self._serialize_data(data)
             await self.redis_client.set(
                 cache_key,
-                json.dumps(data, default=str),
+                json.dumps(serialized_data, default=str),
                 ex=expire
             )
             return True
-        except Exception:
+        except Exception as e:
+            print(f"Cache error: {str(e)}")  # For debugging
             return False
     
     async def invalidate_by_pattern(self, pattern: str) -> int:
@@ -112,6 +130,7 @@ class CacheManager:
         if identifier:
             pattern = f"{namespace}:*{identifier}*"
         return await self.invalidate_by_pattern(pattern)
+    
 
 def cache_route(
     namespace: Union[str, CacheNamespace],
@@ -123,22 +142,10 @@ def cache_route(
 ):
     """
     Generic cache decorator for API routes.
-    
-    Args:
-        namespace: Cache namespace (e.g., 'transaction', 'user')
-        expire: Cache expiration time in seconds
-        identifier_param: Parameter name to use as identifier (e.g., 'user_id', 'transaction_id')
-        include_params: List of query parameters to include in cache key
-        prefix: Optional prefix for the cache key (e.g., 'list', 'single')
-        invalidate_namespaces: List of namespaces to invalidate after successful mutation
     """
     def decorator(func):
         @wraps(func)
-        async def wrapper(*args, **kwargs):
-            request = next((arg for arg in args if isinstance(arg, Request)), None)
-            if not request:
-                return await func(*args, **kwargs)
-            
+        async def wrapper(request: Request, *args, **kwargs):  # Explicitly add request parameter
             # Initialize cache manager
             cache_manager = CacheManager(request.app.state.redis_client)
             
@@ -168,7 +175,7 @@ def cache_route(
                 return cached_response
             
             # Execute function if cache miss
-            response = await func(*args, **kwargs)
+            response = await func(request, *args, **kwargs)
             
             # Don't cache error responses
             if isinstance(response, dict) and response.get('error'):
