@@ -1,12 +1,11 @@
 from datetime import datetime
-from typing import List, Optional, Tuple
-from sqlalchemy import func, select
+from decimal import Decimal
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-from app.db.models import Transaction, User
-from app.db.transaction_model import TransactionStatus, TransactionType
+from app.db.models import Transaction
+from app.db.transaction_model import TransactionStatus
 from app.repositories.transaction_repository import TransactionRepository
-from app.schemas.event_schemas import UserBalanceUpdatePayload, UserEvents
+from app.schemas.event_schemas import UserBalanceUpdatePayload
 from app.schemas.transaction import TransactionCreate, TransactionUpdate, TransactionAnalytics
 from app.services.user_service import UserService
 from fastapi_events.dispatcher import dispatch
@@ -54,7 +53,8 @@ class TransactionService:
             order_by="transaction_date",
             other_filters={"user_id": user_id})
 
-    async def update_transaction_status(self, transaction_id: int, status: TransactionStatus) -> Transaction:
+    async def update_transaction_status(
+            self, transaction_id: int, status: TransactionStatus) -> Transaction:
         """Update a transaction status."""
         transaction = await self.get_transaction(transaction_id)
         if not transaction:
@@ -64,3 +64,29 @@ class TransactionService:
         await self.transaction_repo.update(transaction, TransactionUpdate(transaction_status=status))
         return transaction
 
+    async def get_transaction_analytics(self, user_id: int) -> TransactionAnalytics:
+        """Get transaction analytics for a user."""
+        average_transaction_value = await self._get_user_transaction_average(user_id)
+        highest_transaction_day = await self._get_highest_transaction_date(user_id)
+        return TransactionAnalytics(
+            user_id=user_id,
+            average_transaction_value=average_transaction_value,
+            highest_transaction_day=highest_transaction_day
+        )
+
+    async def _get_highest_transaction_date(self, user_id: int) -> datetime:
+        """Get the highest transaction date for a user."""
+        transactions = await self.get_user_transactions(user_id)
+        if not transactions:
+            return None
+        return max(transactions, key=lambda x: x.transaction_date).transaction_date
+
+    async def _get_user_transaction_average(self, user_id: int) -> Decimal:
+        """Get the average transaction value for a user."""
+        transactions = await self.get_user_transactions(user_id)
+        if not transactions:
+            return Decimal(0)
+        return Decimal(
+            sum(transaction.transaction_amount for transaction in transactions) /
+            len(transactions)
+        ).quantize(Decimal('0.01'))

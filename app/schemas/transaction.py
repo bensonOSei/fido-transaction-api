@@ -43,7 +43,7 @@ class TransactionResponse(TransactionBase):
     
     @validator('transaction_amount', pre=True)
     def amount_to_cents(cls, v):
-        return Decimal(v) / 100
+        return (Decimal(v) / 100).quantize(Decimal('0.01'))
 
     class Config:
         from_attributes = True
@@ -68,8 +68,13 @@ class TransactionAnalytics(BaseModel):
     user_id: int
     average_transaction_value: Decimal
     highest_transaction_day: datetime
-    total_credits: Optional[Decimal]
-    total_debits: Optional[Decimal]
+    # total_credits: Optional[Decimal]
+    # total_debits: Optional[Decimal]
+    
+    # @validator('average_transaction_value')
+    # def convert_average_transaction_to_currency(cls, v):
+    #     # to 2 decimal places
+    #     v.quantize(Decimal('0.01'))
 
     class Config:
         from_attributes = True
