@@ -42,6 +42,14 @@ class Settings(BaseSettings):
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = ["*"]
     
+    # Email
+    EMAIL_SMTP_HOST: str
+    EMAIL_SMTP_PORT: int
+    EMAIL_SMTP_USER: str
+    EMAIL_SMTP_PASSWORD: str
+    EMAIL_FROM_EMAIL: str
+    EMAIL_ENABLE_NOTIFICATIONS: bool = True
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

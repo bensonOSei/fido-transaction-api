@@ -1,7 +1,7 @@
 from fastapi_events.registry.payload_schema import registry as payload_schema
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 from app.db.transaction_model import TransactionType
 
@@ -16,3 +16,5 @@ class UserBalanceUpdatePayload(BaseModel):
     amount: int
     transaction_id: int
     transaction_type: TransactionType
+    full_name: str
+    email: EmailStr

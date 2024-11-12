@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from app.cache import CacheManager, CacheNamespace, cache_route
-from app.api.dependencies import get_transaction_service
+from app.api.dependencies import get_transaction_service, get_user_service
 from app.schemas.transaction import (
     TransactionCreate,
     TransactionResponse,
@@ -11,7 +11,11 @@ from app.schemas.transaction import (
     TransactionWithoutUserResponse
 )
 from app.services.transaction_service import TransactionService
+from app.services.user_service import UserService
 from app.utils.response import Response
+from app.schemas.event_schemas import UserBalanceUpdatePayload
+from fastapi_events.dispatcher import dispatch
+
 
 router = APIRouter()
 
@@ -20,11 +24,13 @@ router = APIRouter()
 async def create_transaction(
     request: Request,
     transaction: TransactionCreate,
-    service: TransactionService = Depends(get_transaction_service)
+    service: TransactionService = Depends(get_transaction_service),
+    user_service: UserService = Depends(get_user_service)
 ):
     """Create a new transaction."""
     try:
         new_transaction = await service.create_transaction(transaction)
+        user = await user_service.get_user(new_transaction.user_id)
         # Invalidate all relevant caches
         cache_manager = CacheManager(request.app.state.redis_client)
         await cache_manager.invalidate_by_namespace(CacheNamespace.TRANSACTION)
@@ -36,7 +42,14 @@ async def create_transaction(
             CacheNamespace.ANALYTICS,
             identifier=transaction.user_id
         )
-
+        dispatch(UserBalanceUpdatePayload(
+            user_id=new_transaction.user_id,
+            amount=new_transaction.transaction_amount,
+            transaction_id=new_transaction.id,
+            transaction_type=new_transaction.transaction_type,
+            full_name=user.full_name,
+            email=user.email
+        ))
         return new_transaction
     except Exception as e:
         return Response.error(e)

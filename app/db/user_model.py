@@ -12,6 +12,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     full_name = Column(EncryptedString, nullable=False)
     balance = Column(Integer, nullable=False, default=0)
+    email = Column(EncryptedString, nullable=False, unique=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

@@ -1,6 +1,5 @@
-from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Transaction
@@ -19,14 +18,7 @@ class TransactionService:
 
     async def create_transaction(self, data: TransactionCreate) -> Transaction:
         """Create a new transaction."""
-        transaction = await self.transaction_repo.create(data)
-        dispatch(UserBalanceUpdatePayload(
-            user_id=transaction.user_id,
-            amount=transaction.transaction_amount * 100,
-            transaction_id=transaction.id,
-            transaction_type=transaction.transaction_type
-        ))
-        return transaction
+        return await self.transaction_repo.create(data)
 
     async def get_transactions(
         self,
@@ -63,18 +55,7 @@ class TransactionService:
         transaction.transaction_status = status
         await self.transaction_repo.update(transaction, TransactionUpdate(transaction_status=status))
         return transaction
-    
-    async def _get_user_debit_and_credit(self, user_id: int) -> Tuple[Decimal, Decimal]:
-        """Get user debit and credit amounts."""
-        transactions = await self.get_user_transactions(user_id)
-        if not transactions:
-            return Decimal(0), Decimal(0)
-        
-        debit_amount = sum(transaction.transaction_amount for transaction in transactions if transaction.transaction_type == TransactionType.DEBIT)
-        credit_amount = sum(transaction.transaction_amount for transaction in transactions if transaction.transaction_type == TransactionType.CREDIT)
-        
-        return debit_amount, credit_amount
-    
+
     async def get_transaction_analytics(self, user_id: int) -> TransactionAnalytics:
         """Get transaction analytics for a user."""
         # Create a query for analytics
@@ -85,13 +66,15 @@ class TransactionService:
                 func.max(Transaction.transaction_date).label('max_date'),
                 func.sum(
                     case(
-                        (Transaction.transaction_type == TransactionType.DEBIT, Transaction.transaction_amount),
+                        (Transaction.transaction_type == TransactionType.DEBIT,
+                         Transaction.transaction_amount),
                         else_=0
                     )
                 ).label('total_debits'),
                 func.sum(
                     case(
-                        (Transaction.transaction_type == TransactionType.CREDIT, Transaction.transaction_amount),
+                        (Transaction.transaction_type == TransactionType.CREDIT,
+                         Transaction.transaction_amount),
                         else_=0
                     )
                 ).label('total_credits')
@@ -99,10 +82,9 @@ class TransactionService:
             .select_from(Transaction)
             .where(Transaction.user_id == user_id)
         )
-        
-        # Add this method to your TransactionRepository
+
         stats = await self.transaction_repo.execute(query)
-        
+
         if not stats:
             return TransactionAnalytics(
                 user_id=user_id,
@@ -111,28 +93,11 @@ class TransactionService:
                 total_credits=Decimal(0),
                 total_debits=Decimal(0)
             )
-            
+
         return TransactionAnalytics(
             user_id=user_id,
             average_transaction_value=Decimal(str(stats['avg_amount'] or 0)),
             highest_transaction_day=stats['max_date'],
             total_credits=Decimal(str(stats['total_credits'] or 0)),
             total_debits=Decimal(str(stats['total_debits'] or 0))
-        )
-
-    async def _get_highest_transaction_date(self, user_id: int) -> datetime:
-        """Get the highest transaction date for a user."""
-        transactions = await self.get_user_transactions(user_id)
-        if not transactions:
-            return None
-        return max(transactions, key=lambda x: x.transaction_date).transaction_date
-
-    async def _get_user_transaction_average(self, user_id: int) -> Decimal:
-        """Get the average transaction value for a user."""
-        transactions = await self.get_user_transactions(user_id)
-        if not transactions:
-            return Decimal(0)
-        return Decimal(
-            sum(transaction.transaction_amount for transaction in transactions) /
-            len(transactions)
         )
