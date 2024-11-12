@@ -5,7 +5,7 @@ from datetime import datetime
 
 import redis.asyncio as redis
 from fastapi import FastAPI, BackgroundTasks
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, validator
 from app.core.config import settings
 
 
@@ -20,6 +20,19 @@ class TransactionEvent(BaseModel):
     transaction_type: str
     transaction_date: datetime
     transaction_id: str
+
+    @validator('user_id')
+    def user_id_must_not_be_empty(cls, v):
+        if not v.strip():
+            raise ValueError('user_id must not be empty')
+        return v
+
+    @validator('transaction_type')
+    def validate_transaction_type(cls, v):
+        valid_types = ['credit', 'debit']
+        if v.lower() not in valid_types:
+            raise ValueError(f'transaction_type must be one of {valid_types}')
+        return v.lower()
 
 
 class RedisQueueService:
@@ -93,7 +106,6 @@ class RedisQueueService:
         # user_id = transaction_data["user_id"]
         # amount = transaction_data["transaction_amount"]
         
-        print("Processing notifications")
         email_context = TransactionEmailContext(
             user_id=transaction_data["user_id"],
             full_name=transaction_data["full_name"],
@@ -126,7 +138,6 @@ class RedisQueueService:
                         self.processing_queues["credit"], timeout=1):
                     await self.process_credit_score(json.loads(credit_data[1]))
                 
-                print("Checking notification queue")
                 # Process notifications queue
                 if notif_data := await self.redis_client.brpop(
                         self.processing_queues["notifications"], timeout=1):
