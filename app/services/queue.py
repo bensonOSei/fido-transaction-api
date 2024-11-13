@@ -1,38 +1,15 @@
-from typing import Dict, Optional
 import json
 import asyncio
 from datetime import datetime
+from typing import Dict
 
 import redis.asyncio as redis
-from fastapi import FastAPI, BackgroundTasks
-from pydantic import BaseModel, EmailStr, validator
 from app.core.config import settings
 
 
+from app.schemas.event_schemas import TransactionEvent
 from app.services.email_notification import EmailConfig, EmailNotificationService, TransactionEmailContext
 
-
-class TransactionEvent(BaseModel):
-    user_id: str
-    full_name: str
-    email: EmailStr
-    transaction_amount: float
-    transaction_type: str
-    transaction_date: datetime
-    transaction_id: str
-
-    @validator('user_id')
-    def user_id_must_not_be_empty(cls, v):
-        if not v.strip():
-            raise ValueError('user_id must not be empty')
-        return v
-
-    @validator('transaction_type')
-    def validate_transaction_type(cls, v):
-        valid_types = ['credit', 'debit']
-        if v.lower() not in valid_types:
-            raise ValueError(f'transaction_type must be one of {valid_types}')
-        return v.lower()
 
 
 class RedisQueueService:

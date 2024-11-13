@@ -2,8 +2,9 @@ from datetime import datetime
 from unittest.mock import AsyncMock
 import pytest
 
+from app.schemas.event_schemas import TransactionEvent
 from app.services.email_notification import EmailConfig
-from app.services.queue import RedisQueueService, TransactionEvent
+from app.services.queue import RedisQueueService
 
 class TestRedisQueueService:
 

@@ -23,18 +23,7 @@ class User(Base):
     __table_args__ = (
         Index('idx_user_created_at', 'created_at'),
     )
-    
-    @property
-    def balance_cents(self) -> int:
-        """Get user balance in cents."""
-        return (Decimal(self.balance) / 100)
-    
-    @balance_cents.setter
-    def balance_cents(self, value: int) -> None:
-        """Set user balance in cents."""
-        self.balance = int(value * 100)
 
-        
         
     def __repr__(self):
         return f"User(id={self.id}, balance=${self.balance})"

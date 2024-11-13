@@ -44,7 +44,7 @@ async def create_transaction(
         )
         dispatch(UserBalanceUpdatePayload(
             user_id=new_transaction.user_id,
-            amount=new_transaction.transaction_amount,
+            amount=new_transaction.transaction_amount/100,
             transaction_id=new_transaction.id,
             transaction_type=new_transaction.transaction_type,
             full_name=user.full_name,

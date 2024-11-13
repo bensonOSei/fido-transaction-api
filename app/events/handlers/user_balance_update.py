@@ -5,9 +5,9 @@ from fastapi_events.typing import Event
 import redis
 from app.db.database import engine
 from app.db.transaction_model import TransactionStatus, TransactionType
-from app.schemas.event_schemas import UserEvents
+from app.schemas.event_schemas import TransactionEvent, UserEvents
 from app.services.email_notification import EmailConfig
-from app.services.queue import RedisQueueService, TransactionEvent
+from app.services.queue import RedisQueueService
 from app.services.transaction_service import TransactionService
 from app.services.user_service import UserService
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncConnection

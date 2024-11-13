@@ -43,15 +43,6 @@ class Transaction(Base):
         Index('idx_transaction_created_at', 'created_at'),
     )
 
-    @property
-    def transaction_amount_cents(self) -> int:
-        """Get transaction amount in cents."""
-        return Decimal()
-    
-    @transaction_amount_cents.setter
-    def transaction_amount_cents(self, value: int) -> None:
-        """Set transaction amount in cents."""
-        self.transaction_amount = int(value * 100)
         
     def __repr__(self):
         return f"Transaction(amount=${self.transaction_amount})"
